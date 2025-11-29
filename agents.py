@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional
 
 import vertexai
-from vertexai.generative_models import GenerationResponse, GenerativeModel, Part
+from vertexai.generative_models import GenerationResponse, GenerativeModel, Part, GenerationConfig
 
 from tools import execute_tool
 
@@ -78,75 +78,97 @@ class AgentTurn:
 class TaskLogicAgent:
     """The engine: decomposes user intent into atomic tasks and checks conflicts."""
 
-    def __init__(self, model_name: str = "gemini-2.5-pro"):
+    def __init__(self, model_name: str = "gemini-1.5-pro"):
+        # Use 1.5-pro or 2.0-flash for better instruction following
         self.model = GenerativeModel(model_name)
 
     def decompose_brain_dump(
         self, user_text: str, context: Optional[Dict[str, Any]] = None
     ) -> TaskPlan:
-        """
-        Uses a generative model to decompose a user's "brain dump" into structured tasks.
-        """
         context = context or {}
+        
+        # 1. Define the Strict Output Schema
+        # This forces the model to fill a LIST of tasks, not just one string
+        response_schema = {
+            "type": "OBJECT",
+            "properties": {
+                "tasks": {
+                    "type": "ARRAY",
+                    "items": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "description": {"type": "STRING"},
+                            "due": {"type": "STRING"},
+                            "priority": {"type": "STRING"},
+                        },
+                        "required": ["description"],
+                    },
+                },
+                "conflicts": {
+                    "type": "ARRAY",
+                    "items": {"type": "STRING"},
+                },
+                "encouragement": {"type": "STRING"},
+            },
+            "required": ["tasks", "encouragement"],
+        }
+
         prompt = self._construct_prompt(user_text, context)
         
         try:
             response = self.model.generate_content(
                 prompt,
-                generation_config={"temperature": 0.1, "response_mime_type": "application/json"},
+                generation_config=GenerationConfig(
+                    temperature=0.1,
+                    response_mime_type="application/json",
+                    response_schema=response_schema # <--- KEY FIX
+                ),
             )
             plan = self._parse_model_response(response)
         except Exception as e:
             print(f"Error calling model or parsing response: {e}")
-            # Fallback to a simple plan on error
             plan = TaskPlan(
                 tasks=[TaskItem(description=user_text)],
-                conflicts=["I had trouble understanding that. Could you rephrase?"]
+                conflicts=["I had trouble decomposing that. Could you list them one by one?"]
             )
 
-        # Allow context to override the model's generated encouragement
         if context.get("encouragement_override"):
             plan.encouragement = context.get("encouragement_override")
             
         return plan
-    
+
     def _construct_prompt(self, user_text: str, context: Dict[str, Any]) -> str:
-            # We can inject more context here later (e.g., existing tasks, user preferences)
-            
-            # Pull context details out cleanly to inject into the prompt
-            user_preferences = context.get("user_preferences", "No specific preferences retrieved.") 
-            
-            return f"""
-            You are an expert at helping users with ADHD break down a "brain dump" of text into a clear, actionable task list.
-            Analyze the user's text and extract distinct tasks.
-            
-            --- USER MEMORY & CONTEXT ---
-            Use this information to inform due dates, priorities, and suggestions:
-            {user_preferences} 
-            -----------------------------
+        user_preferences = context.get("user_preferences", "No specific preferences.")
+        
+        return f"""
+        You are an expert Task Decomposer for ADHD assistants. 
+        Your ONLY goal is to break down complex "brain dumps" into small, atomic, single-action tasks.
 
-            Respond in this exact JSON format:
-            {{
-            "tasks": [{{ "description": "A short, clear description of the task.", "due": "An optional due date if mentioned, in ISO 8601 format.", "priority": "An optional priority (low, medium, high)." }}],
-            "conflicts": ["A list of any potential conflicts or ambiguities you found, like duplicate tasks."],
-            "encouragement": "A brief, positive, and encouraging message for the user."
-            }}
+        --- RULES FOR DECOMPOSITION ---
+        1. **SPLIT COMPOUND SENTENCES**: If a user says "Do X and Y", these MUST be two separate tasks.
+        2. **ISOLATE DATES**: If a task has a specific time (e.g., "Friday at 10am"), extract it into the 'due' field.
+        3. **BE ATOMIC**: A task description should be short (e.g., "Buy eggs").
 
-            User's brain dump:
-            ---
-            {user_text}
-            ---
-            """
+        --- ONE-SHOT EXAMPLE ---
+        USER: "I need to mail the letter and pick up the dry cleaning tomorrow."
+        RESPONSE:
+        {{
+            "tasks": [
+                {{"description": "Mail the letter", "due": null, "priority": "medium"}},
+                {{"description": "Pick up dry cleaning", "due": "2025-10-12", "priority": "medium"}}
+            ],
+            "encouragement": "Two quick errands and you're done!"
+        }}
+        -------------------------
 
-    @staticmethod
-    def _parse_model_response(response: GenerationResponse) -> TaskPlan:
-        response_dict = response.candidates[0].content.parts[0].json
-        tasks = [TaskItem(**task_data) for task_data in response_dict.get("tasks", [])]
-        return TaskPlan(
-            tasks=tasks,
-            conflicts=response_dict.get("conflicts", []),
-            encouragement=response_dict.get("encouragement", "You got this! Let's get these organized."),
-        )
+        --- USER CONTEXT ---
+        {user_preferences}
+        --------------------
+
+        User's Brain Dump:
+        "{user_text}"
+        """
+
 
 
 class ToolExecutionAgent:
