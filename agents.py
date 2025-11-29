@@ -20,14 +20,12 @@ from tools import execute_tool
 # ---- Vertex AI Initialization -------------------------------------------------------------
 
 try:
-    PROJECT_ID = "adhd-assistant-capstone"
-    LOCATION = "us-central1"  # Or your desired location
+    # We use the project ID from the environment if available, or fallback to string
+    PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "adhd-assistant-capstone")
+    LOCATION = "us-central1"
     vertexai.init(project=PROJECT_ID, location=LOCATION)
 except Exception as e:
-    print(f"ERROR: Vertex AI initialization failed: {e}")
-    print(
-        "Please make sure you have authenticated with Google Cloud CLI and have the correct permissions."
-    )
+    print(f"Warning: Vertex AI init deferred or failed: {e}")
 
 
 # ---- Shared data models --------------------------------------------------------------------
@@ -79,7 +77,7 @@ class TaskLogicAgent:
     """The engine: decomposes user intent into atomic tasks and checks conflicts."""
 
     def __init__(self, model_name: str = "gemini-1.5-pro"):
-        # Use 1.5-pro or 2.0-flash for better instruction following
+        # gemini-1.5-pro is highly recommended for complex instruction following
         self.model = GenerativeModel(model_name)
 
     def decompose_brain_dump(
@@ -87,11 +85,16 @@ class TaskLogicAgent:
     ) -> TaskPlan:
         context = context or {}
         
-        # 1. Define the Strict Output Schema
-        # This forces the model to fill a LIST of tasks, not just one string
+        # 1. Define Strict Output Schema with "Reasoning" field
+        # We force the model to output "reasoning" first. This acts as a scratchpad 
+        # for the model to think before it commits to the specific task list.
         response_schema = {
             "type": "OBJECT",
             "properties": {
+                "reasoning": {
+                    "type": "STRING", 
+                    "description": "Step-by-step analysis of the input text to identify distinct actions."
+                },
                 "tasks": {
                     "type": "ARRAY",
                     "items": {
@@ -110,7 +113,7 @@ class TaskLogicAgent:
                 },
                 "encouragement": {"type": "STRING"},
             },
-            "required": ["tasks", "encouragement"],
+            "required": ["reasoning", "tasks", "encouragement"],
         }
 
         prompt = self._construct_prompt(user_text, context)
@@ -119,9 +122,9 @@ class TaskLogicAgent:
             response = self.model.generate_content(
                 prompt,
                 generation_config=GenerationConfig(
-                    temperature=0.1,
+                    temperature=0.2, # Slight increase to allow for creative separation
                     response_mime_type="application/json",
-                    response_schema=response_schema # <--- KEY FIX
+                    response_schema=response_schema
                 ),
             )
             plan = self._parse_model_response(response)
@@ -141,21 +144,28 @@ class TaskLogicAgent:
         user_preferences = context.get("user_preferences", "No specific preferences.")
         
         return f"""
-        You are an expert Task Decomposer for ADHD assistants. 
-        Your ONLY goal is to break down complex "brain dumps" into small, atomic, single-action tasks.
+        You are an expert Task Decomposer for ADHD assistants.
+        Your goal is to turn a chaotic "brain dump" into a clean, atomic checklist.
 
-        --- RULES FOR DECOMPOSITION ---
-        1. **SPLIT COMPOUND SENTENCES**: If a user says "Do X and Y", these MUST be two separate tasks.
-        2. **ISOLATE DATES**: If a task has a specific time (e.g., "Friday at 10am"), extract it into the 'due' field.
-        3. **BE ATOMIC**: A task description should be short (e.g., "Buy eggs").
+        --- CRITICAL RULES ---
+        1. **ATOMICITY**: Each task must be a SINGLE action. 
+           - BAD: "Call doctor and buy bread"
+           - GOOD: "Call doctor" (Task 1), "Buy bread" (Task 2)
+        2. **NO COPYING**: Do NOT just copy the user's full text into a task. Rewrite it.
+        3. **EXTRACT DATES**: If a time is mentioned, move it to the 'due' field.
+
+        --- STRATEGY ---
+        1. First, use the "reasoning" field to list out the verbs you see in the text.
+        2. Then, create the "tasks" list based on those verbs.
 
         --- ONE-SHOT EXAMPLE ---
-        USER: "I need to mail the letter and pick up the dry cleaning tomorrow."
-        RESPONSE:
+        Input: "I need to mail the letter and pick up the dry cleaning tomorrow."
+        Output JSON:
         {{
+            "reasoning": "User mentioned two distinct actions: 'mail letter' and 'pick up dry cleaning'. Both have a timeframe of 'tomorrow'.",
             "tasks": [
-                {{"description": "Mail the letter", "due": null, "priority": "medium"}},
-                {{"description": "Pick up dry cleaning", "due": "2025-10-12", "priority": "medium"}}
+                {{"description": "Mail the letter", "due": "tomorrow", "priority": "medium"}},
+                {{"description": "Pick up dry cleaning", "due": "tomorrow", "priority": "medium"}}
             ],
             "encouragement": "Two quick errands and you're done!"
         }}
@@ -169,6 +179,21 @@ class TaskLogicAgent:
         "{user_text}"
         """
 
+    @staticmethod
+    def _parse_model_response(response: GenerationResponse) -> TaskPlan:
+        # We perform a safe extraction here
+        try:
+            response_dict = response.candidates[0].content.parts[0].json
+        except (IndexError, AttributeError, ValueError):
+            # Fallback if JSON parsing fails fundamentally
+            return TaskPlan(tasks=[], conflicts=["Model response error"])
+            
+        tasks = [TaskItem(**task_data) for task_data in response_dict.get("tasks", [])]
+        return TaskPlan(
+            tasks=tasks,
+            conflicts=response_dict.get("conflicts", []),
+            encouragement=response_dict.get("encouragement", "You got this!"),
+        )
 
 
 class ToolExecutionAgent:
@@ -178,6 +203,9 @@ class ToolExecutionAgent:
         """Prepare tool actions without executing them; keeps HITL in the loop."""
         actions: List[ToolAction] = []
         for task in tasks:
+            # Logic: If it has a specific due date/time, we Schedule it.
+            # If it's just a general task, we might just set a Reminder.
+            
             if task.due:
                 actions.append(
                     ToolAction(
@@ -186,17 +214,18 @@ class ToolExecutionAgent:
                         description=f"✅ Schedule '{task.description}' for {task.due}",
                     )
                 )
-            actions.append(
-                ToolAction(
-                    kind="set_reminder",
-                    payload={"task_description": task.description, "remind_at": task.due or '1 hour from now'},
-                    description=f"🔔 Set reminder for '{task.description}'",
+            else:
+                # Default behavior for tasks without strict times
+                actions.append(
+                    ToolAction(
+                        kind="set_reminder",
+                        payload={"task_description": task.description, "remind_at": '1 hour from now'},
+                        description=f"🔔 Set reminder for '{task.description}'",
+                    )
                 )
-            )
         return actions
 
     def execute_actions(self, actions: List[ToolAction]) -> List[Any]:
-        """Execute prepared actions. Replace _noop with real MCP tool integrations."""
         results: List[Any] = []
         for action in actions:
             try:
@@ -206,7 +235,6 @@ class ToolExecutionAgent:
                 print(f"Error executing action '{action.kind}': {e}")
                 results.append({"status": "error", "details": str(e)})
         return results
-
 
 
 class ConversationManagerAgent:
@@ -222,15 +250,8 @@ class ConversationManagerAgent:
         user_id: str = "default_user",
         auto_confirm: bool = False,
     ) -> AgentTurn:
-        """
-        Main entrypoint for user-facing interactions.
-
-        - Retrieves user context via ToolExecutionAgent.
-        - Decomposes the brain dump into tasks via TaskLogicAgent.
-        - Prepares tool actions (not executed unless auto_confirm=True).
-        - Enforces a confirmation loop before scheduling/reminders.
-        """
-        # 1. Retrieve context (delegating to the "Hands")
+        
+        # 1. Retrieve context 
         context_action = ToolAction(
             kind="get_user_context",
             payload={"user_id": user_id},
@@ -239,18 +260,18 @@ class ConversationManagerAgent:
         context_result = self.tool_agent.execute_actions([context_action])
         context = context_result[0].get("context", {})
 
-        # 2. Decompose task (delegating to the "Engine")
+        # 2. Decompose task
         plan = self.task_agent.decompose_brain_dump(user_text=user_text, context=context)
 
-        # 3. Propose actions based on the plan (delegating to the "Hands" again)
+        # 3. Propose actions
         pending_actions = self.tool_agent.propose_actions(plan.tasks)
         requires_confirmation = not auto_confirm
 
-        # 4. Execute actions if confirmation is not required
+        # 4. Execute actions if auto_confirm is True
         if auto_confirm:
             self.tool_agent.execute_actions(pending_actions)
 
-        # 5. Format the final response for the user
+        # 5. Format response
         message_parts: List[str] = []
         if plan.encouragement:
             message_parts.append(plan.encouragement)
@@ -261,23 +282,15 @@ class ConversationManagerAgent:
                 task_details = [f"{idx}. {task.description}"]
                 if task.due:
                     task_details.append(f" (Due: {task.due})")
-                if task.priority:
-                    task_details.append(f" [Priority: {task.priority}]")
                 message_parts.append("".join(task_details))
         
-        if plan.conflicts:
-            message_parts.append("\nI noticed a few things to double-check:")
-            for conflict in plan.conflicts:
-                message_parts.append(f"• {conflict}")
-
         if pending_actions and requires_confirmation:
-            message_parts.append("\nI can help with the following:")
+            message_parts.append("\nI'll set these up for you:")
             for action in pending_actions:
                 message_parts.append(f"- {action.description}")
-            message_parts.append("\nShall I proceed?")
+            message_parts.append("\nSound good?")
         elif not plan.tasks:
-            message_parts.append("I didn't find any specific tasks. Can you give me a bit more detail?")
-
+            message_parts.append("I couldn't find any specific tasks to list. Could you rephrase?")
 
         return AgentTurn(
             user_facing_message="\n".join(message_parts),
@@ -285,56 +298,3 @@ class ConversationManagerAgent:
             pending_actions=pending_actions,
             requires_confirmation=requires_confirmation,
         )
-
-
-# ---- Example Usage -------------------------------------------------------------------------
-
-if __name__ == "__main__":
-    # 1. Initialize the agents
-    task_agent = TaskLogicAgent()
-    tool_agent = ToolExecutionAgent()
-    manager = ConversationManagerAgent(task_agent=task_agent, tool_agent=tool_agent)
-
-    # 2. Simulate a user "brain dump"
-    # FAKE_USER_BRAIN_DUMP = (
-    #     "I need to finish the report for work by Friday, schedule a dentist appointment for next week,"
-    #     " and don't forget to buy milk. Also, I should really start meditating."
-    # )
-    #
-    # # 3. Handle the user message (with confirmation loop)
-    # print(f"--- USER INPUT ---\n{FAKE_USER_BRAIN_DUMP}\n")
-    # agent_turn = manager.handle_user_message(FAKE_USER_BRAIN_DUMP)
-    #
-    # print(f"--- AGENT RESPONSE ---\n{agent_turn.user_facing_message}\n")
-    #
-    # # 4. Simulate user confirmation and execute actions
-    # if agent_turn.requires_confirmation:
-    #     # In a real app, you would wait for user input here.
-    #     print("--- USER CONFIRMS ---\n")
-    #     results = tool_agent.execute_actions(agent_turn.pending_actions)
-    #     print("\n--- TOOL EXECUTION RESULTS ---")
-    #     for res in results:
-    #         print(res)
-    
-    # 2. Simulate a user "brain dump"
-    FAKE_USER_BRAIN_DUMP = (
-        "I need to finish the report for work by Friday, schedule a dentist appointment for next week,"
-        " and don't forget to buy milk. Also, I should really start meditating."
-    )
-
-    # 3. Handle the user message (with auto-confirm for demonstration)
-    print(f"--- USER INPUT ---\n{FAKE_USER_BRAIN_DUMP}\n")
-    agent_turn = manager.handle_user_message(
-        user_text=FAKE_USER_BRAIN_DUMP, 
-        user_id="user_12345", 
-        auto_confirm=True
-    )
-
-    print(f"--- AGENT RESPONSE ---\n{agent_turn.user_facing_message}\n")
-    print("\n--- TOOL EXECUTION RESULTS ---")
-    # In this demo, actions were auto-executed, so we can inspect the (simulated) results.
-    # Note that get_user_context was already called inside handle_user_message.
-    # The results printed here are for the scheduling and reminder actions.
-    for res in agent_turn.pending_actions:
-        print(res)
-
