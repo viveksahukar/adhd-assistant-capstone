@@ -12,8 +12,9 @@ import os
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional
 
-import vertexai
-from vertexai.generative_models import GenerationResponse, GenerativeModel, Part, GenerationConfig
+# NEW (AI Studio)
+import google.generativeai as genai
+self.model = genai.GenerativeModel("gemini-1.5-pro")
 
 from tools import execute_tool
 
