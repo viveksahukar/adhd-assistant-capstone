@@ -1,131 +1,84 @@
+
 """Core agent definitions for the ADHD assistant architecture.
 
 This module defines three collaborating agents:
-1. ConversationManagerAgent: orchestrates the flow and enforces HITL confirmation.
-2. TaskLogicAgent: decomposes user intent into atomic tasks and checks for conflicts.
-3. ToolExecutionAgent: prepares and executes tool calls (calendar, reminders, memory).
+1. ConversationManagerAgent: orchestrates the flow.
+2. TaskLogicAgent: decomposes user intent (Using Google AI Studio / Free Tier).
+3. ToolExecutionAgent: prepares and executes tool calls.
 """
 
 from __future__ import annotations
 
 import os
+import json
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional
 
-# NEW (AI Studio)
+# --- CHANGED: Import Google AI Studio library instead of Vertex AI ---
 import google.generativeai as genai
-self.model = genai.GenerativeModel("gemini-1.5-pro")
+from google.ai.generativelanguage import Content, Part
 
 from tools import execute_tool
 
-# ---- [REMOVED] Vertex AI Initialization ---------------------------------------------------
-# We removed the vertexai.init() block here. 
-# The initialization is now handled EXCLUSIVELY in the Notebook (Cell 2) 
-# using the Service Account. This prevents the credentials from being overwritten.
-# -------------------------------------------------------------------------------------------
-
-
 # ---- Shared data models --------------------------------------------------------------------
-
 
 @dataclass
 class TaskItem:
-    """Lightweight representation of an atomic task."""
-
     description: str
     status: str = "pending"
     due: Optional[str] = None
     priority: Optional[str] = None
     conflicts: List[str] = field(default_factory=list)
 
-
 @dataclass
 class TaskPlan:
-    """Structured output from the TaskLogicAgent."""
-
     tasks: List[TaskItem]
     encouragement: Optional[str] = None
     conflicts: List[str] = field(default_factory=list)
 
-
 @dataclass
 class ToolAction:
-    """Deferred tool action that requires user confirmation (HITL)."""
-
     kind: str
     payload: Dict[str, Any]
     description: str
 
-
 @dataclass
 class AgentTurn:
-    """Response envelope returned by the ConversationManagerAgent."""
-
     user_facing_message: str
     tasks: List[TaskItem] = field(default_factory=list)
     pending_actions: List[ToolAction] = field(default_factory=list)
     requires_confirmation: bool = True
 
-
 # ---- Agents --------------------------------------------------------------------------------
 
-
 class TaskLogicAgent:
-    """The engine: decomposes user intent into atomic tasks and checks conflicts."""
+    """The engine: decomposes user intent using the Free Tier API."""
 
     def __init__(self, model_name: str = "gemini-1.5-pro"):
-        # gemini-1.5-pro is highly recommended for complex instruction following
-        self.model = GenerativeModel(model_name)
+        # CHANGED: Use genai.GenerativeModel (Free Tier)
+        self.model = genai.GenerativeModel(model_name)
 
     def decompose_brain_dump(
         self, user_text: str, context: Optional[Dict[str, Any]] = None
     ) -> TaskPlan:
         context = context or {}
         
-        # 1. Define Strict Output Schema with "Reasoning" field
-        response_schema = {
-            "type": "OBJECT",
-            "properties": {
-                "reasoning": {
-                    "type": "STRING", 
-                    "description": "Step-by-step analysis of the input text to identify distinct actions."
-                },
-                "tasks": {
-                    "type": "ARRAY",
-                    "items": {
-                        "type": "OBJECT",
-                        "properties": {
-                            "description": {"type": "STRING"},
-                            "due": {"type": "STRING"},
-                            "priority": {"type": "STRING"},
-                        },
-                        "required": ["description"],
-                    },
-                },
-                "conflicts": {
-                    "type": "ARRAY",
-                    "items": {"type": "STRING"},
-                },
-                "encouragement": {"type": "STRING"},
-            },
-            "required": ["reasoning", "tasks", "encouragement"],
-        }
-
         prompt = self._construct_prompt(user_text, context)
         
         try:
+            # CHANGED: API call syntax for Google AI Studio
+            # We request JSON response_mime_type for structured output
             response = self.model.generate_content(
                 prompt,
-                generation_config=GenerationConfig(
-                    temperature=0.2, 
+                generation_config=genai.GenerationConfig(
                     response_mime_type="application/json",
-                    response_schema=response_schema
-                ),
+                    temperature=0.2
+                )
             )
             plan = self._parse_model_response(response)
         except Exception as e:
-            # This print statement is what showed us the Auth error!
             print(f"Error calling model or parsing response: {e}")
+            # Fallback
             plan = TaskPlan(
                 tasks=[TaskItem(description=user_text)],
                 conflicts=["I had trouble decomposing that. Could you list them one by one?"]
@@ -141,31 +94,21 @@ class TaskLogicAgent:
         
         return f"""
         You are an expert Task Decomposer for ADHD assistants.
-        Your goal is to turn a chaotic "brain dump" into a clean, atomic checklist.
+        GOAL: Break down the user's text into atomic tasks.
 
-        --- CRITICAL RULES ---
-        1. **ATOMICITY**: Each task must be a SINGLE action. 
-           - BAD: "Call doctor and buy bread"
-           - GOOD: "Call doctor" (Task 1), "Buy bread" (Task 2)
-        2. **NO COPYING**: Do NOT just copy the user's full text into a task. Rewrite it.
-        3. **EXTRACT DATES**: If a time is mentioned, move it to the 'due' field.
-
-        --- STRATEGY ---
-        1. First, use the "reasoning" field to list out the verbs you see in the text.
-        2. Then, create the "tasks" list based on those verbs.
-
-        --- ONE-SHOT EXAMPLE ---
-        Input: "I need to mail the letter and pick up the dry cleaning tomorrow."
-        Output JSON:
+        OUTPUT SCHEMA (JSON):
         {{
-            "reasoning": "User mentioned two distinct actions: 'mail letter' and 'pick up dry cleaning'. Both have a timeframe of 'tomorrow'.",
+            "reasoning": "Step-by-step analysis string",
             "tasks": [
-                {{"description": "Mail the letter", "due": "tomorrow", "priority": "medium"}},
-                {{"description": "Pick up dry cleaning", "due": "tomorrow", "priority": "medium"}}
+                {{
+                    "description": "Short task description", 
+                    "due": "Due date or null", 
+                    "priority": "high/medium/low"
+                }}
             ],
-            "encouragement": "Two quick errands and you're done!"
+            "conflicts": ["List of potential conflicts strings"],
+            "encouragement": "Encouraging message string"
         }}
-        -------------------------
 
         --- USER CONTEXT ---
         {user_preferences}
@@ -176,10 +119,12 @@ class TaskLogicAgent:
         """
 
     @staticmethod
-    def _parse_model_response(response: GenerationResponse) -> TaskPlan:
+    def _parse_model_response(response) -> TaskPlan:
         try:
-            response_dict = response.candidates[0].content.parts[0].json
-        except (IndexError, AttributeError, ValueError):
+            # CHANGED: Parsing logic for Google AI Studio response object
+            response_text = response.text
+            response_dict = json.loads(response_text)
+        except Exception:
             return TaskPlan(tasks=[], conflicts=["Model response error"])
             
         tasks = [TaskItem(**task_data) for task_data in response_dict.get("tasks", [])]
@@ -191,7 +136,7 @@ class TaskLogicAgent:
 
 
 class ToolExecutionAgent:
-    """The hands: schedules tasks, sets reminders, and retrieves context via MCP tools."""
+    """The hands: schedules tasks, sets reminders."""
 
     def propose_actions(self, tasks: List[TaskItem]) -> List[ToolAction]:
         actions: List[ToolAction] = []
@@ -227,7 +172,7 @@ class ToolExecutionAgent:
 
 
 class ConversationManagerAgent:
-    """The face/orchestrator: manages the session and overall flow."""
+    """The face/orchestrator."""
 
     def __init__(self, task_agent: TaskLogicAgent, tool_agent: ToolExecutionAgent) -> None:
         self.task_agent = task_agent
@@ -240,7 +185,6 @@ class ConversationManagerAgent:
         auto_confirm: bool = False,
     ) -> AgentTurn:
         
-        # 1. Retrieve context 
         context_action = ToolAction(
             kind="get_user_context",
             payload={"user_id": user_id},
@@ -249,18 +193,14 @@ class ConversationManagerAgent:
         context_result = self.tool_agent.execute_actions([context_action])
         context = context_result[0].get("context", {})
 
-        # 2. Decompose task
         plan = self.task_agent.decompose_brain_dump(user_text=user_text, context=context)
 
-        # 3. Propose actions
         pending_actions = self.tool_agent.propose_actions(plan.tasks)
         requires_confirmation = not auto_confirm
 
-        # 4. Execute actions if auto_confirm is True
         if auto_confirm:
             self.tool_agent.execute_actions(pending_actions)
 
-        # 5. Format response
         message_parts: List[str] = []
         if plan.encouragement:
             message_parts.append(plan.encouragement)
