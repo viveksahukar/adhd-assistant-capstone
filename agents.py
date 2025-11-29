@@ -1,4 +1,4 @@
-
+%%writefile agents.py
 """Core agent definitions for the ADHD assistant architecture.
 
 This module defines three collaborating agents:
@@ -14,10 +14,7 @@ import json
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional
 
-# --- CHANGED: Import Google AI Studio library instead of Vertex AI ---
 import google.generativeai as genai
-from google.ai.generativelanguage import Content, Part
-
 from tools import execute_tool
 
 # ---- Shared data models --------------------------------------------------------------------
@@ -54,8 +51,7 @@ class AgentTurn:
 class TaskLogicAgent:
     """The engine: decomposes user intent using the Free Tier API."""
 
-    def __init__(self, model_name: str = "gemini-1.5-pro"):
-        # CHANGED: Use genai.GenerativeModel (Free Tier)
+    def __init__(self, model_name: str = "gemini-1.5-pro-002"): # <--- CHANGED to valid model name
         self.model = genai.GenerativeModel(model_name)
 
     def decompose_brain_dump(
@@ -66,8 +62,6 @@ class TaskLogicAgent:
         prompt = self._construct_prompt(user_text, context)
         
         try:
-            # CHANGED: API call syntax for Google AI Studio
-            # We request JSON response_mime_type for structured output
             response = self.model.generate_content(
                 prompt,
                 generation_config=genai.GenerationConfig(
@@ -78,7 +72,6 @@ class TaskLogicAgent:
             plan = self._parse_model_response(response)
         except Exception as e:
             print(f"Error calling model or parsing response: {e}")
-            # Fallback
             plan = TaskPlan(
                 tasks=[TaskItem(description=user_text)],
                 conflicts=["I had trouble decomposing that. Could you list them one by one?"]
@@ -121,7 +114,6 @@ class TaskLogicAgent:
     @staticmethod
     def _parse_model_response(response) -> TaskPlan:
         try:
-            # CHANGED: Parsing logic for Google AI Studio response object
             response_text = response.text
             response_dict = json.loads(response_text)
         except Exception:
