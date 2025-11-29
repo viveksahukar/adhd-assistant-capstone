@@ -51,7 +51,8 @@ class AgentTurn:
 class TaskLogicAgent:
     """The engine: decomposes user intent using the Free Tier API."""
 
-    def __init__(self, model_name: str = "gemini-1.5-pro-002"): # <--- CHANGED to valid model name
+    # CHANGED: Switched to 'gemini-2.5-flash' which is the current stable free-tier model
+    def __init__(self, model_name: str = "gemini-2.5-flash"): 
         self.model = genai.GenerativeModel(model_name)
 
     def decompose_brain_dump(
@@ -62,6 +63,7 @@ class TaskLogicAgent:
         prompt = self._construct_prompt(user_text, context)
         
         try:
+            # We request JSON response_mime_type for structured output
             response = self.model.generate_content(
                 prompt,
                 generation_config=genai.GenerationConfig(
