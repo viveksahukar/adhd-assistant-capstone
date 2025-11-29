@@ -20,14 +20,15 @@ from tools import execute_tool
 # ---- Vertex AI Initialization -------------------------------------------------------------
 
 try:
-    PROJECT_ID = os.environ["adhd-assistant-capstone"]
+    PROJECT_ID = "adhd-assistant-capstone"
     LOCATION = "us-central1"  # Or your desired location
     vertexai.init(project=PROJECT_ID, location=LOCATION)
-except KeyError:
+except Exception as e:
+    print(f"ERROR: Vertex AI initialization failed: {e}")
     print(
-        "WARNING: GOOGLE_CLOUD_PROJECT environment variable not set. "
-        "Vertex AI features will not be available."
+        "Please make sure you have authenticated with Google Cloud CLI and have the correct permissions."
     )
+
 
 # ---- Shared data models --------------------------------------------------------------------
 
@@ -114,6 +115,9 @@ class TaskLogicAgent:
         return f"""
         You are an expert at helping users with ADHD break down a "brain dump" of text into a clear, actionable task list.
         Analyze the user's text and extract distinct tasks.
+        
+        Here is some context about the user, use it to inform your response:
+        {context}
 
         Respond in this exact JSON format:
         {{
@@ -187,23 +191,38 @@ class ConversationManagerAgent:
     def handle_user_message(
         self,
         user_text: str,
-        context: Optional[Dict[str, Any]] = None,
+        user_id: str = "default_user",
         auto_confirm: bool = False,
     ) -> AgentTurn:
         """
         Main entrypoint for user-facing interactions.
 
+        - Retrieves user context via ToolExecutionAgent.
         - Decomposes the brain dump into tasks via TaskLogicAgent.
         - Prepares tool actions (not executed unless auto_confirm=True).
         - Enforces a confirmation loop before scheduling/reminders.
         """
+        # 1. Retrieve context (delegating to the "Hands")
+        context_action = ToolAction(
+            kind="get_user_context",
+            payload={"user_id": user_id},
+            description="Fetching user context.",
+        )
+        context_result = self.tool_agent.execute_actions([context_action])
+        context = context_result[0].get("context", {})
+
+        # 2. Decompose task (delegating to the "Engine")
         plan = self.task_agent.decompose_brain_dump(user_text=user_text, context=context)
+
+        # 3. Propose actions based on the plan (delegating to the "Hands" again)
         pending_actions = self.tool_agent.propose_actions(plan.tasks)
         requires_confirmation = not auto_confirm
 
+        # 4. Execute actions if confirmation is not required
         if auto_confirm:
             self.tool_agent.execute_actions(pending_actions)
 
+        # 5. Format the final response for the user
         message_parts: List[str] = []
         if plan.encouragement:
             message_parts.append(plan.encouragement)
@@ -277,16 +296,17 @@ if __name__ == "__main__":
 
     # 3. Handle the user message (with auto-confirm for demonstration)
     print(f"--- USER INPUT ---\n{FAKE_USER_BRAIN_DUMP}\n")
-    agent_turn = manager.handle_user_message(FAKE_USER_BRAIN_DUMP, auto_confirm=True)
+    agent_turn = manager.handle_user_message(
+        user_text=FAKE_USER_BRAIN_DUMP, 
+        user_id="user_12345", 
+        auto_confirm=True
+    )
 
     print(f"--- AGENT RESPONSE ---\n{agent_turn.user_facing_message}\n")
     print("\n--- TOOL EXECUTION RESULTS ---")
     # In this demo, actions were auto-executed, so we can inspect the (simulated) results.
-    # The `execute_actions` method in a real scenario would be called after user confirmation.
-    
-    # To show the results, we will re-execute the actions.
-    # In a real application, the results would be available from the initial `handle_user_message` call if `auto_confirm` is True.
-    results = tool_agent.execute_actions(agent_turn.pending_actions)
-    for res in results:
+    # Note that get_user_context was already called inside handle_user_message.
+    # The results printed here are for the scheduling and reminder actions.
+    for res in agent_turn.pending_actions:
         print(res)
 

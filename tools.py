@@ -65,12 +65,43 @@ def set_reminder(task_description: str, remind_at: str) -> Dict[str, Any]:
         "details": f"Reminder for '{task_description}' set for {remind_at}.",
     }
 
+def get_user_context(user_id: str) -> Dict[str, Any]:
+    """
+    Retrieves context about the user from a memory store.
+
+    In a real implementation, this would query a database or a vector store
+    to fetch the user's preferences, habits, or recent tasks.
+
+    Args:
+        user_id: The ID of the user to fetch context for.
+
+    Returns:
+        A dictionary of user context.
+    """
+    print(f"--- TOOL: Fetching context for user: '{user_id}' ---")
+    # Simulate fetching from a memory store
+    return {
+        "status": "success",
+        "context": {
+            "user_id": user_id,
+            "preferences": {
+                "default_reminder_time": "09:00",
+                "preferred_calendar": "work",
+            },
+            "recent_tasks": [
+                {"description": "Finish Q3 report", "status": "completed"},
+                {"description": "Buy groceries", "status": "pending"},
+            ],
+        },
+    }
+
 # ---- Tool Dispatcher -----------------------------------------------------------------------
 
 # Mapping of tool names to their implementation functions.
 TOOL_REGISTRY = {
     "schedule_event": schedule_event,
     "set_reminder": set_reminder,
+    "get_user_context": get_user_context,
 }
 
 def execute_tool(tool_name: str, payload: Dict[str, Any]) -> Any:
