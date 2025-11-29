@@ -17,15 +17,11 @@ from vertexai.generative_models import GenerationResponse, GenerativeModel, Part
 
 from tools import execute_tool
 
-# ---- Vertex AI Initialization -------------------------------------------------------------
-
-try:
-    # We use the project ID from the environment if available, or fallback to string
-    PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "adhd-assistant-capstone")
-    LOCATION = "us-central1"
-    vertexai.init(project=PROJECT_ID, location=LOCATION)
-except Exception as e:
-    print(f"Warning: Vertex AI init deferred or failed: {e}")
+# ---- [REMOVED] Vertex AI Initialization ---------------------------------------------------
+# We removed the vertexai.init() block here. 
+# The initialization is now handled EXCLUSIVELY in the Notebook (Cell 2) 
+# using the Service Account. This prevents the credentials from being overwritten.
+# -------------------------------------------------------------------------------------------
 
 
 # ---- Shared data models --------------------------------------------------------------------
@@ -86,8 +82,6 @@ class TaskLogicAgent:
         context = context or {}
         
         # 1. Define Strict Output Schema with "Reasoning" field
-        # We force the model to output "reasoning" first. This acts as a scratchpad 
-        # for the model to think before it commits to the specific task list.
         response_schema = {
             "type": "OBJECT",
             "properties": {
@@ -122,13 +116,14 @@ class TaskLogicAgent:
             response = self.model.generate_content(
                 prompt,
                 generation_config=GenerationConfig(
-                    temperature=0.2, # Slight increase to allow for creative separation
+                    temperature=0.2, 
                     response_mime_type="application/json",
                     response_schema=response_schema
                 ),
             )
             plan = self._parse_model_response(response)
         except Exception as e:
+            # This print statement is what showed us the Auth error!
             print(f"Error calling model or parsing response: {e}")
             plan = TaskPlan(
                 tasks=[TaskItem(description=user_text)],
@@ -181,11 +176,9 @@ class TaskLogicAgent:
 
     @staticmethod
     def _parse_model_response(response: GenerationResponse) -> TaskPlan:
-        # We perform a safe extraction here
         try:
             response_dict = response.candidates[0].content.parts[0].json
         except (IndexError, AttributeError, ValueError):
-            # Fallback if JSON parsing fails fundamentally
             return TaskPlan(tasks=[], conflicts=["Model response error"])
             
         tasks = [TaskItem(**task_data) for task_data in response_dict.get("tasks", [])]
@@ -200,12 +193,8 @@ class ToolExecutionAgent:
     """The hands: schedules tasks, sets reminders, and retrieves context via MCP tools."""
 
     def propose_actions(self, tasks: List[TaskItem]) -> List[ToolAction]:
-        """Prepare tool actions without executing them; keeps HITL in the loop."""
         actions: List[ToolAction] = []
         for task in tasks:
-            # Logic: If it has a specific due date/time, we Schedule it.
-            # If it's just a general task, we might just set a Reminder.
-            
             if task.due:
                 actions.append(
                     ToolAction(
@@ -215,7 +204,6 @@ class ToolExecutionAgent:
                     )
                 )
             else:
-                # Default behavior for tasks without strict times
                 actions.append(
                     ToolAction(
                         kind="set_reminder",
