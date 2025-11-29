@@ -1,4 +1,4 @@
-%%writefile agents.py
+
 """Core agent definitions for the ADHD assistant architecture.
 
 This module defines three collaborating agents:
