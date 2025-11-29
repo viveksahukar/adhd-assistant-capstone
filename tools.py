@@ -79,19 +79,17 @@ def get_user_context(user_id: str) -> Dict[str, Any]:
         A dictionary of user context.
     """
     print(f"--- TOOL: Fetching context for user: '{user_id}' ---")
-    # Simulate fetching from a memory store
+    # Simulate fetching from a memory store/Vector Store
     return {
-        "status": "success",
-        "context": {
-            "user_id": user_id,
-            "preferences": {
-                "default_reminder_time": "09:00",
+            "status": "success",
+            "context": {
+                # This is the memory string we will inject into the prompt
+                "user_preferences": (
+                    "The user is an early bird (best focus 8 AM - 11 AM). "
+                    "They dislike long tasks and prefer sub-tasks to be no longer than 45 minutes."
+                ),
                 "preferred_calendar": "work",
-            },
-            "recent_tasks": [
-                {"description": "Finish Q3 report", "status": "completed"},
-                {"description": "Buy groceries", "status": "pending"},
-            ],
+                "recent_tasks_summary": "User has 3 pending tasks: buy groceries, schedule dentist, and meditate."
         },
     }
 

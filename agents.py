@@ -78,7 +78,7 @@ class AgentTurn:
 class TaskLogicAgent:
     """The engine: decomposes user intent into atomic tasks and checks conflicts."""
 
-    def __init__(self, model_name: str = "gemini-1.0-pro-001"):
+    def __init__(self, model_name: str = "gemini-2.5-pro"):
         self.model = GenerativeModel(model_name)
 
     def decompose_brain_dump(
@@ -109,28 +109,34 @@ class TaskLogicAgent:
             plan.encouragement = context.get("encouragement_override")
             
         return plan
-
+    
     def _construct_prompt(self, user_text: str, context: Dict[str, Any]) -> str:
-        # We can inject more context here later (e.g., existing tasks, user preferences)
-        return f"""
-        You are an expert at helping users with ADHD break down a "brain dump" of text into a clear, actionable task list.
-        Analyze the user's text and extract distinct tasks.
-        
-        Here is some context about the user, use it to inform your response:
-        {context}
+            # We can inject more context here later (e.g., existing tasks, user preferences)
+            
+            # Pull context details out cleanly to inject into the prompt
+            user_preferences = context.get("user_preferences", "No specific preferences retrieved.") 
+            
+            return f"""
+            You are an expert at helping users with ADHD break down a "brain dump" of text into a clear, actionable task list.
+            Analyze the user's text and extract distinct tasks.
+            
+            --- USER MEMORY & CONTEXT ---
+            Use this information to inform due dates, priorities, and suggestions:
+            {user_preferences} 
+            -----------------------------
 
-        Respond in this exact JSON format:
-        {{
-          "tasks": [{{ "description": "A short, clear description of the task.", "due": "An optional due date if mentioned, in ISO 8601 format.", "priority": "An optional priority (low, medium, high)." }}],
-          "conflicts": ["A list of any potential conflicts or ambiguities you found, like duplicate tasks."],
-          "encouragement": "A brief, positive, and encouraging message for the user."
-        }}
+            Respond in this exact JSON format:
+            {{
+            "tasks": [{{ "description": "A short, clear description of the task.", "due": "An optional due date if mentioned, in ISO 8601 format.", "priority": "An optional priority (low, medium, high)." }}],
+            "conflicts": ["A list of any potential conflicts or ambiguities you found, like duplicate tasks."],
+            "encouragement": "A brief, positive, and encouraging message for the user."
+            }}
 
-        User's brain dump:
-        ---
-        {user_text}
-        ---
-        """
+            User's brain dump:
+            ---
+            {user_text}
+            ---
+            """
 
     @staticmethod
     def _parse_model_response(response: GenerationResponse) -> TaskPlan:
