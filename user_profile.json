@@ -1,0 +1,17 @@
+{
+  "user_id": "user_12345",
+  "name": "Alex",
+  "preferences": {
+    "work_hours": {
+      "start": "09:00",
+      "end": "17:00"
+    },
+    "focus_time": "morning",
+    "communication_style": "encouraging and detailed", 
+    "task_preference": "Break large projects into small sub-tasks (max 45 mins each) to avoid overwhelm."
+  },
+  "goals": [
+    "Improve executive function",
+    "Reduce anxiety around deadlines"
+  ]
+}

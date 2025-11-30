@@ -1,101 +1,115 @@
-"""Module for executing tools and external actions.
-
-This module provides a centralized function `execute_tool` that acts as a dispatcher
-for various external tools, such as calendar management, reminder systems, or any
-other external API integration.
-
-The primary function is:
-- execute_tool: A dispatcher that takes a tool name and a payload and routes
-  the call to the appropriate tool implementation.
-
-Each tool function is expected to handle its own specific logic, including API calls,
-error handling, and data transformation. The `execute_tool` function provides a
-consistent interface for the agents to interact with these tools.
 """
-
-from __future__ import annotations
-
+tools.py - Persistent Tools for ADHD Assistant
+Now with real file I/O to simulate database/API persistence.
+"""
+import json
+import os
 import datetime
-from typing import Any, Dict
+from typing import Any, Dict, List
 
-# ---- Tool Implementations ------------------------------------------------------------------
+# --- Configuration ---
+USER_PROFILE_FILE = "user_profile.json"
+CALENDAR_DB_FILE = "calendar_db.json"
 
-def schedule_event(
-    task_description: str, due_date: str, priority: str = "normal"
-) -> Dict[str, Any]:
+# --- Helper Functions ---
+def _load_json(filepath: str) -> Any:
+    """Helper to safely load JSON data."""
+    if not os.path.exists(filepath):
+        return {} if filepath == USER_PROFILE_FILE else []
+    try:
+        with open(filepath, 'r') as f:
+            return json.load(f)
+    except json.JSONDecodeError:
+        return {} if filepath == USER_PROFILE_FILE else []
+
+def _save_json(filepath: str, data: Any):
+    """Helper to safely save JSON data."""
+    with open(filepath, 'w') as f:
+        json.dump(data, f, indent=2)
+
+# --- Tool Implementations ---
+
+def get_user_context(user_id: str) -> Dict[str, Any]:
     """
-    Schedules an event in a calendar.
-
-    In a real implementation, this would interact with a service like Google Calendar.
-
-    Args:
-        task_description: The description of the event to schedule.
-        due_date: The due date of the event in ISO 8601 format.
-        priority: The priority of the event (e.g., 'high', 'normal', 'low').
-
-    Returns:
-        A dictionary containing the result of the scheduling operation.
+    Retrieves user profile and preferences from local storage.
+    Simulates a RAG retrieval or Database lookup.
     """
-    print(f"--- TOOL: Scheduling event: '{task_description}' for {due_date} with {priority} priority ---")
-    # Simulate API call
+    print(f"🧠 [MEMORY] Reading profile for: {user_id}")
+    
+    data = _load_json(USER_PROFILE_FILE)
+    
+    # In a real app, we would filter by user_id. 
+    # For this prototype, we assume the file belongs to the single active user.
+    
+    # Format it as a string for the LLM to read easily
+    prefs = data.get("preferences", {})
+    context_str = (
+        f"User Name: {data.get('name', 'Unknown')}. "
+        f"Focus Time: {prefs.get('focus_time', 'Unknown')}. "
+        f"Style: {prefs.get('communication_style', 'Standard')}. "
+        f"Current Goals: {', '.join(data.get('goals', []))}."
+    )
+    
     return {
         "status": "success",
-        "event_id": f"evt_{datetime.datetime.now().isoformat()}",
-        "details": f"Event '{task_description}' scheduled for {due_date}.",
+        "context": {
+            "user_preferences": context_str,
+            "raw_profile": data # useful for debugging
+        }
+    }
+
+def schedule_event(task_description: str, due_date: str, priority: str = "normal") -> Dict[str, Any]:
+    """
+    Adds an event to the persistent calendar file.
+    """
+    print(f"📅 [CALENDAR] Scheduling '{task_description}'...")
+    
+    events = _load_json(CALENDAR_DB_FILE)
+    
+    new_event = {
+        "id": f"evt_{len(events) + 1}",
+        "title": task_description,
+        "due": due_date,
+        "priority": priority,
+        "status": "scheduled",
+        "created_at": datetime.datetime.now().isoformat()
+    }
+    
+    events.append(new_event)
+    _save_json(CALENDAR_DB_FILE, events)
+    
+    return {
+        "status": "success",
+        "event_id": new_event["id"],
+        "details": f"Scheduled '{task_description}' for {due_date}. Total events: {len(events)}"
     }
 
 def set_reminder(task_description: str, remind_at: str) -> Dict[str, Any]:
     """
-    Sets a reminder for a task.
-
-    In a real implementation, this would interact with a service like Google Keep or a mobile notification system.
-
-    Args:
-        task_description: The description of the reminder.
-        remind_at: The time to send the reminder in ISO 8601 format.
-
-    Returns:
-        A dictionary containing the result of the reminder operation.
+    Logs a reminder. (For simplicity, we save these to the calendar DB too).
     """
-    print(f"--- TOOL: Setting reminder: '{task_description}' at {remind_at} ---")
-    # Simulate API call
+    print(f"⏰ [REMINDER] Setting reminder for '{task_description}'...")
+    
+    events = _load_json(CALENDAR_DB_FILE)
+    
+    new_reminder = {
+        "id": f"rem_{len(events) + 1}",
+        "title": f"REMINDER: {task_description}",
+        "due": remind_at,
+        "type": "notification",
+        "created_at": datetime.datetime.now().isoformat()
+    }
+    
+    events.append(new_reminder)
+    _save_json(CALENDAR_DB_FILE, events)
+
     return {
         "status": "success",
-        "reminder_id": f"rem_{datetime.datetime.now().isoformat()}",
-        "details": f"Reminder for '{task_description}' set for {remind_at}.",
+        "reminder_id": new_reminder["id"],
+        "details": f"Reminder set for '{task_description}' at {remind_at}"
     }
 
-def get_user_context(user_id: str) -> Dict[str, Any]:
-    """
-    Retrieves context about the user from a memory store.
-
-    In a real implementation, this would query a database or a vector store
-    to fetch the user's preferences, habits, or recent tasks.
-
-    Args:
-        user_id: The ID of the user to fetch context for.
-
-    Returns:
-        A dictionary of user context.
-    """
-    print(f"--- TOOL: Fetching context for user: '{user_id}' ---")
-    # Simulate fetching from a memory store/Vector Store
-    return {
-            "status": "success",
-            "context": {
-                # This is the memory string we will inject into the prompt
-                "user_preferences": (
-                    "The user is an early bird (best focus 8 AM - 11 AM). "
-                    "They dislike long tasks and prefer sub-tasks to be no longer than 45 minutes."
-                ),
-                "preferred_calendar": "work",
-                "recent_tasks_summary": "User has 3 pending tasks: buy groceries, schedule dentist, and meditate."
-        },
-    }
-
-# ---- Tool Dispatcher -----------------------------------------------------------------------
-
-# Mapping of tool names to their implementation functions.
+# --- Dispatcher ---
 TOOL_REGISTRY = {
     "schedule_event": schedule_event,
     "set_reminder": set_reminder,
@@ -103,25 +117,6 @@ TOOL_REGISTRY = {
 }
 
 def execute_tool(tool_name: str, payload: Dict[str, Any]) -> Any:
-    """
-    Executes a specified tool with a given payload.
-
-    This function acts as a dispatcher, looking up the tool in the TOOL_REGISTRY
-    and executing it with the provided arguments.
-
-    Args:
-        tool_name: The name of the tool to execute (e.g., 'schedule_event').
-        payload: A dictionary of arguments to pass to the tool function.
-
-    Returns:
-        The result of the tool's execution.
-
-    Raises:
-        ValueError: If the specified tool is not found in the registry.
-    """
-
     if tool_name not in TOOL_REGISTRY:
-        raise ValueError(f"Unknown tool: {tool_name}")
-
-    tool_function = TOOL_REGISTRY[tool_name]
-    return tool_function(**payload)
+        return {"status": "error", "message": f"Unknown tool: {tool_name}"}
+    return TOOL_REGISTRY[tool_name](**payload)
