@@ -31,11 +31,11 @@ By automating the cognitive load of planning and scheduling, Lumi transforms anx
 
 ---
 
-# The Build: Technical Implementation & Architecture
+# 2. The Build: Technical Implementation & Architecture
 
 To move beyond a Level 1 "Connected Problem Solver," I architected a **Level 3: Collaborative Multi-Agent System**.
 
-## 2. Architecture: The Coordinator (Supervisor) Design Pattern
+## Architecture: The Coordinator (Supervisor) Design Pattern
 
 Lumi employs the **Coordinator Multi-Agent Architecture,** designed to decouple user interaction from the complex logic of task management.
 
@@ -74,7 +74,7 @@ To ensure reliability, I built a standalone **Evaluation Pipeline** (evaluation.
 
 ---
 
-# 3. Challenges & Resolutions (The Journey)
+# 3. Challenges & Resolutions
 
 During the build, I encountered three specific challenges that required applying advanced agentic concepts to resolve.
 
@@ -103,7 +103,7 @@ Resolution: I diagnosed this as a Context Alignment failure. The new user\_profi
 
 ## 4. Evaluation Results (LLM-as-a-Judge)
 
-The system achieved a *perfect score (10/10)* on the "Decomposition Stress Test" using the LLM-as-a-Judge pipeline.
+The system achieved a **perfect score (10/10)** on the "Decomposition Stress Test" using the LLM-as-a-Judge pipeline.
 
 * **Judge's Reasoning:** *"The Assistant performed exceptionally well. All tasks were correctly decomposed into atomic sub-tasks... Temporal awareness was perfect, correctly identifying 'Friday' and 'tonight'. There was no hallucination of tasks."*
 
@@ -153,4 +153,8 @@ This agent uses **Google Gemini 2.5 Flash** via Google AI Studio. It runs locall
 ---
 
 ## 🔮 Future Roadmap (AgentBeats)
-*(Paste your "If I Had More Time" section here)*
+
+This project serves as the foundation (V1) for my participation in the AgentX-AgentBeats competition.
+Implicit Memory: Currently, the user profile is static (Bootstrapped). In Version 2, I will implement Implicit Memory Extraction to analyze conversation history and update user preferences dynamically (e.g., learning that the user hates early morning meetings).
+Conflict Resolution: I will enhance the TaskLogicAgent to check for schedule collisions in calendar_db.json before booking, moving from a "Level 2" planner to a more robust "Level 3" collaborator that negotiates with the user.
+Agent-to-Agent (A2A) Protocol: I plan to expose the Evaluation Script as a standardized service using the A2A Protocol, allowing other developers to use my benchmark to test their own planning agents.
