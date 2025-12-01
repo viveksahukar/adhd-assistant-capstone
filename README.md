@@ -152,7 +152,7 @@ This agent uses **Google Gemini 2.5 Flash** via Google AI Studio. It runs locall
 
 ---
 
-## 🔮 Future Roadmap (AgentBeats)
+## 🔮 Future Roadmap
 
 This project serves as the foundation (V1) for my participation in the **AgentX-AgentBeats competition**.
 
