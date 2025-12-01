@@ -11,6 +11,52 @@
 
 ---
 
+## 🛠️ How to Run Locally
+
+This agent uses **Google Gemini 2.5 Flash** via Google AI Studio. It is designed to run in VS Code or Jupyter Lab locally and stores state in JSON files.
+
+### Prerequisites
+* Python 3.10+
+* A Google AI Studio API Key
+* VS Code (Recommended) with the Jupyter and Python extensions installed.
+
+### Installation
+1.  **Clone the repository:**
+    ```bash
+    git clone [https://github.com/viveksahukar/adhd-assistant-capstone.git](https://github.com/viveksahukar/adhd-assistant-capstone.git)
+    cd adhd-assistant-capstone
+    ```
+
+2.  **Create a Virtual Environment & Install dependencies:**
+    ```bash
+    python -m venv venv
+    source venv/bin/activate  # On Windows use: venv\Scripts\activate
+    pip install -q -r requirements.txt
+    ```
+
+3.  **Setup Credentials:**
+    * Create a file named `.env` in the root folder.
+    * Add your API key:
+        ```text
+        GOOGLE_API_KEY=your_actual_api_key_here
+        ```
+
+### Usage
+1.  **Run the Agent:**
+    * Open `adhd-assistant.ipynb` in VS Code.
+    * Click **Select Kernel** in the top right and choose your `venv` (Python 3.10+).
+    * Click **Run All**.
+    * *This will initialize the agents, simulate a user "brain dump", and show the task decomposition and calendar scheduling in real-time.*
+
+2.  **Run the Evaluation (Judge):**
+    * To run the automated quality assessment, use the command line:
+    ```bash
+    python evaluation.py
+    ```
+    * This runs the LLM-as-a-Judge pipeline to grade the agent's performance agains a golden dataset.*
+
+---
+
 # 1. The Pitch: Solving Executive Dysfunction
 
 ## The Problem
@@ -106,49 +152,6 @@ Resolution: I diagnosed this as a Context Alignment failure. The new user\_profi
 The system achieved a **perfect score (10/10)** on the "Decomposition Stress Test" using the LLM-as-a-Judge pipeline.
 
 * **Judge's Reasoning:** *"The Assistant performed exceptionally well. All tasks were correctly decomposed into atomic sub-tasks... Temporal awareness was perfect, correctly identifying 'Friday' and 'tonight'. There was no hallucination of tasks."*
-
----
-
-## 🛠️ How to Run Locally
-*(This section is REQUIRED for the "Reproducibility" score. Use the text below:)*
-
-This agent uses **Google Gemini 2.5 Flash** via Google AI Studio. It runs locally and stores state in JSON files.
-
-### Prerequisites
-* Python 3.10+
-* A Google AI Studio API Key
-
-### Installation
-1.  **Clone the repository:**
-    ```bash
-    git clone [https://github.com/viveksahukar/adhd-assistant-capstone.git](https://github.com/viveksahukar/adhd-assistant-capstone.git)
-    cd adhd-assistant-capstone
-    ```
-
-2.  **Install dependencies:**
-    ```bash
-    pip install -q google-generativeai pydantic python-dotenv
-    ```
-
-3.  **Setup Credentials:**
-    * Create a file named `.env` in the root folder.
-    * Add your API key:
-        ```text
-        GOOGLE_API_KEY=your_actual_api_key_here
-        ```
-
-### Usage
-1.  **Run the Agent:**
-    ```bash
-    python main.py
-    ```
-    *This will execute the "Brain Dump" scenario, decompose the tasks, and update `calendar_db.json`.*
-
-2.  **Run the Evaluation (Judge):**
-    ```bash
-    python evaluation.py
-    ```
-    *This runs the LLM-as-a-Judge pipeline to grade the agent's performance.*
 
 ---
 
