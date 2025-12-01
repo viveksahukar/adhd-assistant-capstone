@@ -1,154 +1,58 @@
 [
   {
     "id": "evt_1",
-    "title": "Buy eggs",
-    "due": "today",
+    "title": "Review presentation content for Friday's presentation.",
+    "due": "2023-10-26",
     "priority": "high",
     "status": "scheduled",
-    "created_at": "2025-11-30T08:27:33.179590"
+    "created_at": "2025-12-01T12:12:52.033617"
   },
   {
     "id": "evt_2",
-    "title": "Buy bread",
-    "due": "today",
+    "title": "Practice presentation for Friday's presentation.",
+    "due": "2023-10-26",
     "priority": "high",
     "status": "scheduled",
-    "created_at": "2025-11-30T08:27:33.180519"
+    "created_at": "2025-12-01T12:12:52.033983"
   },
   {
     "id": "evt_3",
-    "title": "Prepare for presentation",
-    "due": "before Friday morning",
+    "title": "Prepare presentation materials and check tech setup (e.g., load onto laptop, check projector compatibility).",
+    "due": "2023-10-26",
     "priority": "high",
     "status": "scheduled",
-    "created_at": "2025-11-30T08:27:33.180877"
+    "created_at": "2025-12-01T12:12:52.034267"
   },
   {
     "id": "evt_4",
-    "title": "Call doctor to schedule appointment",
-    "due": "next week",
-    "priority": "medium",
+    "title": "Do a final mental run-through before leaving for the presentation.",
+    "due": "2023-10-27",
+    "priority": "high",
     "status": "scheduled",
-    "created_at": "2025-11-30T08:27:33.181134"
+    "created_at": "2025-12-01T12:12:52.034529"
   },
   {
     "id": "evt_5",
-    "title": "Work on presentation content",
-    "due": "Thursday, 5 PM",
-    "priority": "high",
+    "title": "Call doctor's office to schedule an appointment.",
+    "due": "2023-11-03",
+    "priority": "medium",
     "status": "scheduled",
-    "created_at": "2025-11-30T08:37:55.060648"
+    "created_at": "2025-12-01T12:12:52.034751"
   },
   {
     "id": "evt_6",
-    "title": "Create presentation visuals/slides",
-    "due": "Thursday, 5 PM",
+    "title": "Buy eggs.",
+    "due": "2023-10-23",
     "priority": "high",
     "status": "scheduled",
-    "created_at": "2025-11-30T08:37:55.061413"
+    "created_at": "2025-12-01T12:12:52.034932"
   },
   {
     "id": "evt_7",
-    "title": "Practice presentation",
-    "due": "Thursday, 5 PM",
+    "title": "Buy bread.",
+    "due": "2023-10-23",
     "priority": "high",
     "status": "scheduled",
-    "created_at": "2025-11-30T08:37:55.061763"
-  },
-  {
-    "id": "evt_8",
-    "title": "Buy eggs and bread",
-    "due": "Today",
-    "priority": "medium",
-    "status": "scheduled",
-    "created_at": "2025-11-30T08:37:55.062040"
-  },
-  {
-    "id": "evt_9",
-    "title": "Call doctor to schedule appointment",
-    "due": "Next Friday",
-    "priority": "medium",
-    "status": "scheduled",
-    "created_at": "2025-11-30T08:37:55.062319"
-  },
-  {
-    "id": "evt_10",
-    "title": "Prepare presentation materials for Friday's presentation.",
-    "due": "Thursday",
-    "priority": "high",
-    "status": "scheduled",
-    "created_at": "2025-11-30T08:41:50.262460"
-  },
-  {
-    "id": "evt_11",
-    "title": "Rehearse presentation for Friday.",
-    "due": "Thursday",
-    "priority": "high",
-    "status": "scheduled",
-    "created_at": "2025-11-30T08:41:50.263280"
-  },
-  {
-    "id": "evt_12",
-    "title": "Buy eggs and bread.",
-    "due": "Today",
-    "priority": "high",
-    "status": "scheduled",
-    "created_at": "2025-11-30T08:41:50.263601"
-  },
-  {
-    "id": "evt_13",
-    "title": "Call doctor to schedule an appointment.",
-    "due": "Next week",
-    "priority": "medium",
-    "status": "scheduled",
-    "created_at": "2025-11-30T08:41:50.264075"
-  },
-  {
-    "id": "evt_14",
-    "title": "Outline and prepare the core content for the presentation.",
-    "due": "Thursday",
-    "priority": "high",
-    "status": "scheduled",
-    "created_at": "2025-11-30T08:42:53.360640"
-  },
-  {
-    "id": "evt_15",
-    "title": "Create or finalize all presentation slides and visual aids.",
-    "due": "Thursday",
-    "priority": "high",
-    "status": "scheduled",
-    "created_at": "2025-11-30T08:42:53.361321"
-  },
-  {
-    "id": "evt_16",
-    "title": "Practice the presentation delivery at least once.",
-    "due": "Thursday",
-    "priority": "high",
-    "status": "scheduled",
-    "created_at": "2025-11-30T08:42:53.361772"
-  },
-  {
-    "id": "evt_17",
-    "title": "Confirm all technical requirements and logistics for the presentation (e.g., projector, microphone, room setup).",
-    "due": "Thursday",
-    "priority": "high",
-    "status": "scheduled",
-    "created_at": "2025-11-30T08:42:53.362180"
-  },
-  {
-    "id": "evt_18",
-    "title": "Call the doctor's office to schedule an appointment.",
-    "due": "End of next week",
-    "priority": "medium",
-    "status": "scheduled",
-    "created_at": "2025-11-30T08:42:53.362697"
-  },
-  {
-    "id": "evt_19",
-    "title": "Buy eggs and bread.",
-    "due": "Today",
-    "priority": "medium",
-    "status": "scheduled",
-    "created_at": "2025-11-30T08:42:53.363083"
+    "created_at": "2025-12-01T12:12:52.035098"
   }
 ]
