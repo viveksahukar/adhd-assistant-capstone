@@ -1,5 +1,5 @@
 # 🕯️ Lumi – Your Calm in the Chaos
-### An ADHD Executive Function Assistant powered by Google Gemini
+### An executive function assistant for ADHD that transforms mental chaos into actionable plans, powered by Google Gemini.
 
 ![Architecture Diagram](lumi_architecture.png)
 
