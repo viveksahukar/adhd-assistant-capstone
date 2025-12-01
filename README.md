@@ -6,8 +6,8 @@
 ---
 
 ## 📺 Demo Video
-[![Watch the Demo](https://img.youtube.com/vi/YOUR_VIDEO_ID/0.jpg)](https://www.youtube.com/watch?v=YOUR_VIDEO_ID)
-*(Replace with your actual YouTube link. If you don't have a thumbnail, just put the link: [Watch the Demo Video](LINK))*
+[![Watch the Demo]([https://www.youtube.com/watch?v=YOUR_VIDEO_ID](https://youtu.be/q_3T1xnfjK0))
+
 
 ---
 
