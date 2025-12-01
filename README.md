@@ -147,7 +147,7 @@ Resolution: I diagnosed this as a Context Alignment failure. The new user\_profi
 
 ---
 
-## 4. Evaluation Results (LLM-as-a-Judge)
+# 4. Evaluation Results (LLM-as-a-Judge)
 
 The system achieved a **perfect score (10/10)** on the "Decomposition Stress Test" using the LLM-as-a-Judge pipeline.
 
@@ -155,10 +155,12 @@ The system achieved a **perfect score (10/10)** on the "Decomposition Stress Tes
 
 ---
 
-## 🔮 Future Roadmap
+# 5. Future Roadmap
 
 This project serves as the foundation (V1) for my participation in the **AgentX-AgentBeats competition**.
 
 * **Implicit Memory:** Currently, the user profile is static (Bootstrapped). In Version 2, I will implement Implicit Memory Extraction to analyze conversation history and update user preferences dynamically (e.g., learning that the user hates early morning meetings).  
 * **Conflict Resolution:** I will enhance the TaskLogicAgent to check for schedule collisions in calendar\_db.json before booking, moving from a "Level 2" planner to a more robust "Level 3" collaborator that negotiates with the user.  
 * **Agent-to-Agent (A2A) Protocol:** I plan to expose the Evaluation Script as a standardized service using the A2A Protocol, allowing other developers to use my benchmark to test their own planning agents.
+
+---
