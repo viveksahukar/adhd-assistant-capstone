@@ -126,7 +126,7 @@ During the build, I encountered three specific challenges that required applying
 
 ## The "Lazy Model" (Summarization Bias)
 
-Problem: The TaskLogicAgent initially failed to decompose complex requests (e.g., "Prep presentation and buy eggs"). Instead of splitting them, it lazily grouped them into one giant task description, failing the Effectiveness pillar of Agent Quality10.
+**Problem**: The TaskLogicAgent initially failed to decompose complex requests (e.g., "Prep presentation and buy eggs"). Instead of splitting them, it lazily grouped them into one giant task description, failing the Effectiveness pillar of Agent Quality10.
 
 **Resolution**: I applied two advanced prompting techniques:
 
@@ -135,15 +135,15 @@ Problem: The TaskLogicAgent initially failed to decompose complex requests (e.g.
 
 ## Authentication Friction
 
-Problem: The initial "Hybrid" workflow (Local VS Code \+ Remote Colab) caused significant friction. Interactive authentication (popups) required by Vertex AI failed in the headless Colab environment.
+**Problem**: The initial "Hybrid" workflow (Local VS Code \+ Remote Colab) caused significant friction. Interactive authentication (popups) required by Vertex AI failed in the headless Colab environment.
 
-Resolution: I migrated to a Cloud-Native Workflow using Google AI Studio. I replaced complex Service Account authentication with a streamlined API Key approach managed via Colab Secrets. This aligned with the principle of optimizing for Velocity during the prototyping phase.
+**Resolution**: I migrated to a Cloud-Native Workflow using Google AI Studio. I replaced complex Service Account authentication with a streamlined API Key approach managed via Colab Secrets. This aligned with the principle of optimizing for Velocity during the prototyping phase.
 
 ## Context Availability
 
-Problem: After refactoring the code to use external files, the agent stopped decomposing tasks.
+**Problem**: After refactoring the code to use external files, the agent stopped decomposing tasks.
 
-Resolution: I diagnosed this as a Context Alignment failure. The new user\_profile.json was missing specific instructions ("prefer sub-tasks \< 45 mins") that were previously hardcoded. Updating the external JSON file immediately restored the intelligent behavior, validating that the architecture was correctly driven by Context rather than code12.
+**Resolution**: I diagnosed this as a Context Alignment failure. The new user\_profile.json was missing specific instructions ("prefer sub-tasks \< 45 mins") that were previously hardcoded. Updating the external JSON file immediately restored the intelligent behavior, validating that the architecture was correctly driven by Context rather than code12.
 
 ---
 
